@@ -34,7 +34,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8i1yb03bpXqpEp9HEp
 // --- Gemini API Call ---
 const analyzeReceiptWithGemini = async (base64Image, mimeType) => {
   const apiKey = "AIzaSyAK2O2hRrwPUaDGKw-GCEJAZNiS0kez858";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
   const payload = {
     contents: [
