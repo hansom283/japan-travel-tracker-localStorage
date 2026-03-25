@@ -1,0 +1,16 @@
+{
+  "name": "旅費帳本",
+  "short_name": "旅費帳本",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "500x500",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#1a1209",
+  "background_color": "#faf6ef"
+}
