@@ -24,17 +24,12 @@ const getTodayString = () => {
   return (new Date(Date.now() - tzOffset)).toISOString().split('T')[0];
 };
 
-// Delay for exponential backoff
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
-
-// --- Cloud Sync Settings ---
-// 🌟 步驟 4：將取得的 Google Apps Script 網址貼在下方引號內
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8i1yb03bpXqpEp9HEpYcSQ6q9vNLFBq7LfuXkY_rfZCPcb1occUYts_2eEyplmwmV/exec'; 
 
 // --- Gemini API Call ---
 const analyzeReceiptWithGemini = async (base64Image, mimeType) => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const apiKey = ""; 
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
   const payload = {
     contents: [
@@ -85,7 +80,6 @@ const analyzeReceiptWithGemini = async (base64Image, mimeType) => {
       
       let parsedData = JSON.parse(textResponse);
       
-      // Handle Japanese date formats like "25-09-11" or "25.09.11"
       if (parsedData.date) {
         let d = parsedData.date.replace(/[年|月|\/|\.]/g, '-').replace(/[日]/g, '');
         let parts = d.split('-').filter(p => p !== '');
@@ -113,7 +107,6 @@ export default function App() {
   const [tab, setTab] = useState('home');
   const [expenses, setExpenses] = useState([]);
   const [settings, setSettings] = useState({ exchangeRate: 0.22, dailyBudgetJpy: 10000 });
-  const [isSyncing, setIsSyncing] = useState(false);
 
   // Quick Add Form State
   const [quickName, setQuickName] = useState('');
@@ -130,37 +123,16 @@ export default function App() {
   
   const fileInputRef = useRef(null);
 
-  // Initial Load & Cloud Fetch
+  // Initial Load from LocalStorage
   useEffect(() => {
-    // 1. 先快速載入本機資料，讓畫面不要白屏
     const savedExpenses = localStorage.getItem('jp_records_v2');
     if (savedExpenses) setExpenses(JSON.parse(savedExpenses));
     
     const savedSettings = localStorage.getItem('jp_settings_v2');
     if (savedSettings) setSettings(JSON.parse(savedSettings));
-
-    // 2. 如果有設定 SCRIPT_URL，就在背景抓取最新的雲端資料
-    const fetchCloudData = async () => {
-      if (!SCRIPT_URL) return;
-      setIsSyncing(true);
-      try {
-        const res = await fetch(SCRIPT_URL);
-        const cloudData = await res.json();
-        if (Array.isArray(cloudData)) {
-          setExpenses(cloudData);
-          localStorage.setItem('jp_records_v2', JSON.stringify(cloudData));
-        }
-      } catch (err) {
-        console.error('Cloud sync failed:', err);
-      } finally {
-        setIsSyncing(false);
-      }
-    };
-
-    fetchCloudData();
   }, []);
 
-  // Save Settings to LocalStorage (Expenses are saved synchronously too)
+  // Save Settings to LocalStorage automatically when changed
   useEffect(() => {
     localStorage.setItem('jp_records_v2', JSON.stringify(expenses));
     localStorage.setItem('jp_settings_v2', JSON.stringify(settings));
@@ -180,24 +152,6 @@ export default function App() {
     }, {});
   }, [sortedExpenses]);
 
-  // Cloud Sync Helper
-  const syncToCloud = async (payload) => {
-    if (!SCRIPT_URL) return;
-    setIsSyncing(true);
-    try {
-      // 故意使用 text/plain 可以繞過 GAS 惱人的 CORS Preflight 限制
-      await fetch(SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload)
-      });
-    } catch (err) {
-      console.error('Failed to sync to cloud', err);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
   // Actions
   const handleQuickAdd = () => {
     if (!quickName || !quickAmount) return alert('請填寫名稱與金額');
@@ -214,9 +168,6 @@ export default function App() {
     setQuickName('');
     setQuickAmount('');
     setQuickNote('');
-    
-    // 背景同步到 Google Sheets
-    syncToCloud({ action: 'add', data: newExp });
   };
 
   const handleSaveExpense = () => {
@@ -232,23 +183,17 @@ export default function App() {
     
     setIsEditing(false);
     setCurrentExpense(null);
-
-    // 背景同步到 Google Sheets
-    syncToCloud({ action: 'edit', data: newExp });
   };
 
   const handleDeleteExpense = (id) => {
     if(confirm("確定要刪除這筆紀錄嗎？")) {
       setExpenses(prev => prev.filter(e => e.id !== id));
       setIsEditing(false);
-
-      // 背景同步到 Google Sheets
-      syncToCloud({ action: 'delete', id: id });
     }
   };
 
   const clearAll = () => {
-    if(confirm('確定清除手機內的所有紀錄？注意：此動作不會刪除 Google 雲端上的資料。')) {
+    if(confirm('確定清除手機內的所有紀錄？')) {
       setExpenses([]);
     }
   };
@@ -279,7 +224,7 @@ export default function App() {
             note: aiData.note || ''
           });
           setIsScanning(false);
-          setIsEditing(true); // Open modal for confirmation
+          setIsEditing(true);
         } catch (error) {
           alert(error.message);
           setIsScanning(false);
@@ -317,7 +262,6 @@ export default function App() {
 
   const renderHome = () => (
     <div className="p-4 pb-24 space-y-4 animate-in fade-in font-zen">
-      {/* Summary Grid */}
       <div className="grid grid-cols-2 gap-3 mb-2">
         <div className="bg-[#fffdf8] border border-[#d4c4a8] border-l-4 border-l-[#c0392b] rounded-xl p-4 shadow-sm">
           <div className="text-[0.7rem] text-[#c0392b] font-bold mb-1">總花費 JPY</div>
@@ -329,7 +273,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* Scan Section */}
       <div 
         onClick={triggerCamera}
         className="bg-[#fffdf8] border-2 border-dashed border-[#d4c4a8] rounded-2xl p-6 text-center cursor-pointer active:scale-95 transition-transform shadow-sm"
@@ -339,7 +282,6 @@ export default function App() {
         <div className="text-[0.7rem] text-[#8c7b6b] mt-1">✨ AI自動辨識日期、品項、金額、類別</div>
       </div>
 
-      {/* Manual Form */}
       <div className="bg-[#fffdf8] border border-[#d4c4a8] rounded-2xl p-4 shadow-sm">
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
@@ -372,7 +314,6 @@ export default function App() {
         </button>
       </div>
 
-      {/* Recent List */}
       {expenses.length > 0 && (
         <div className="mt-2">
           <h4 className="text-[0.8rem] text-[#8c7b6b] font-bold mb-2 ml-1">最近紀錄</h4>
@@ -520,7 +461,7 @@ export default function App() {
         />
 
         <button onClick={exportCSV} className="w-full bg-[#f0e8d8] border border-[#d4c4a8] text-[#1a1209] font-bold py-3 rounded-xl mb-3 shadow-sm active:scale-95 transition-transform">
-          📤 匯出 CSV
+          📤 匯出 CSV (本機資料)
         </button>
         <button onClick={clearAll} className="w-full bg-[#f0e8d8] border border-[#d4c4a8] text-[#c0392b] font-bold py-3 rounded-xl shadow-sm active:scale-95 transition-transform">
           🗑️ 清除所有資料
@@ -533,7 +474,6 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#faf6ef] font-sans text-[#1a1209] max-w-md mx-auto relative shadow-2xl overflow-hidden">
       
-      {/* Dynamic Font Styles Injection */}
       <style dangerouslySetInnerHTML={{__html: `
         @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&family=Zen+Kaku+Gothic+New:wght@300;400;700&family=Shippori+Mincho:wght@400;600&display=swap');
         .font-mincho { font-family: 'Shippori Mincho', 'Noto Serif TC', serif; }
@@ -541,27 +481,16 @@ export default function App() {
         .custom-scrollbar::-webkit-scrollbar { width: 0px; background: transparent; }
       `}} />
 
-      {/* Hidden File Input for Camera/Album */}
       <input type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
 
-      {/* Main Content Area */}
       <div className="h-screen overflow-y-auto custom-scrollbar">
-        {/* Header */}
         <header className="sticky top-0 bg-[#1a1209] text-[#faf6ef] z-10 px-5 py-4 flex justify-between items-center shadow-md">
           <div className="flex items-center gap-2">
             <span className="text-[1.3rem]">⛩️</span>
             <h1 className="text-[1.15rem] font-mincho font-semibold tracking-wide mt-1">旅費帳本</h1>
           </div>
           <div className="flex items-center gap-3">
-            {/* 雲端同步狀態提示 */}
-            {isSyncing ? (
-              <span className="text-[#d4a017] text-[0.7rem] font-bold font-zen animate-pulse">⏳ 同步中</span>
-            ) : SCRIPT_URL ? (
-              <span className="text-[#27ae60] text-[0.7rem] font-bold font-zen">☁️ 雲端</span>
-            ) : (
-              <span className="text-[#8c7b6b] text-[0.7rem] font-bold font-zen">📱 本機</span>
-            )}
-            
+            {/* 只保留匯率顯示，移除雲端狀態 */}
             <div className="text-[#d4a017] text-[0.85rem] font-bold font-zen">
               💴 {settings.exchangeRate}
             </div>
@@ -574,7 +503,6 @@ export default function App() {
         {tab === 'settings' && renderSettings()}
       </div>
 
-      {/* Bottom Navigation */}
       <nav className="absolute bottom-0 w-full bg-[#1a1209] flex z-20 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
         <NavItem icon="🏠" label="首頁" active={tab === 'home'} onClick={() => setTab('home')} />
         <NavItem icon="📋" label="明細" active={tab === 'list'} onClick={() => setTab('list')} />
@@ -582,7 +510,6 @@ export default function App() {
         <NavItem icon="⚙️" label="設定" active={tab === 'settings'} onClick={() => setTab('settings')} />
       </nav>
 
-      {/* Loading Overlay for Scanning */}
       {isScanning && (
         <div className="absolute inset-0 bg-black/85 z-50 flex flex-col items-center justify-center text-white font-zen gap-4 animate-in fade-in">
           <div className="w-10 h-10 border-4 border-[#333] border-t-[#d4a017] rounded-full animate-spin"></div>
@@ -590,7 +517,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Edit / Add Modal */}
       {isEditing && currentExpense && (
         <div className="absolute inset-0 bg-black/60 z-40 flex items-end justify-center animate-in fade-in" onClick={() => setIsEditing(false)}>
           <div className="bg-[#fffdf8] w-full max-w-md rounded-t-[20px] p-6 shadow-2xl animate-in slide-in-from-bottom-5 duration-300 font-zen" onClick={e => e.stopPropagation()}>
@@ -628,13 +554,11 @@ export default function App() {
               </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex gap-2">
               <button onClick={() => setIsEditing(false)} className="flex-1 bg-[#fffdf8] border border-[#d4c4a8] py-3 rounded-xl font-bold text-[#1a1209] shadow-sm">取消</button>
               <button onClick={handleSaveExpense} className="flex-[2] bg-[#c0392b] text-white py-3 rounded-xl font-bold shadow-sm">✅ 確認儲存</button>
             </div>
             
-            {/* Delete button (only show if it already exists in expenses) */}
             {expenses.find(e => e.id === currentExpense.id) && (
               <button onClick={() => handleDeleteExpense(currentExpense.id)} className="w-full mt-4 py-2 text-[#c0392b] font-bold text-sm text-center opacity-80 hover:opacity-100">
                 🗑️ 刪除此紀錄
@@ -648,7 +572,6 @@ export default function App() {
   );
 }
 
-// Navigation Item Component
 const NavItem = ({ icon, label, active, onClick }) => (
   <button 
     onClick={onClick} 
