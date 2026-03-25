@@ -487,7 +487,7 @@ export default function App() {
         <header className="sticky top-0 bg-[#1a1209] text-[#faf6ef] z-10 px-5 py-4 flex justify-between items-center shadow-md">
           <div className="flex items-center gap-2">
             <span className="text-[1.3rem]">⛩️</span>
-            <h1 className="text-[1.15rem] font-mincho font-semibold tracking-wide mt-1">旅費帳本</h1>
+            <h1 className="text-[1.15rem] font-mincho font-semibold tracking-wide mt-1">旅費帳本 本地版</h1>
           </div>
           <div className="flex items-center gap-3">
             {/* 只保留匯率顯示，移除雲端狀態 */}
