@@ -28,8 +28,8 @@ const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
 // --- Gemini API Call ---
 const analyzeReceiptWithGemini = async (base64Image, mimeType) => {
-  const apiKey = ""; 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY; 
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
   const payload = {
     contents: [
